@@ -38,6 +38,8 @@ conf = {
     "chatgpt_apy_key":os.environ.get('chatgpt_apy_key'),
 }
 
+cookie_file_path = os.path.join(app.root_path, 'cookies.json')
+print("cookie_file_path:{}".format(cookie_file_path))
 CHATGPT_APY_KEY = conf['chatgpt_apy_key']
 
 class BotType(Enum):
@@ -527,7 +529,7 @@ phind = PhindSearch()
 echo = Echo()
 sd = FreeStableDuffision()
 g_search = SearchGoogle()
-bing = Chatbot(cookiePath='cookies.json')
+bing = Chatbot(cookiePath=cookie_file_path)
 
 
 async def handle_info(source, req_data):
