@@ -608,15 +608,16 @@ async def handle_info(source, req_data):
             print("PICASSO")
             try:
                 en_propmt = ai_cli.ask("翻译成英文：{}".format(text_info))
-                try:
-                    pic_url = sd.generate_pic(en_propmt)
-                except Exception as dalle:
-                    print('dalle:{}'.format(dalle))
-                    pic_url = ai_cli.generate_pic(en_propmt)
-
-                DingdingUtil.sendMarkdown(senderid, tt, MsgWrapper.wrap_markdown_pic(tt, pic_url), webhook_url)
             except Exception as translate_error:
                 print("translate_error:{}".format(translate_error))
+                en_propmt = text_info
+            try:
+                pic_url = sd.generate_pic(en_propmt)
+            except Exception as dalle:
+                print('dalle:{}'.format(dalle))
+                pic_url = ai_cli.generate_pic(en_propmt)
+
+            DingdingUtil.sendMarkdown(senderid, tt, MsgWrapper.wrap_markdown_pic(tt, pic_url), webhook_url)
         else:
             print("BING")
             # 设置重置次数
