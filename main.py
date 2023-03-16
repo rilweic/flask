@@ -39,6 +39,11 @@ conf = {
 }
 
 cookie_file_path = os.path.join(app.root_path, 'cookies.json')
+
+file_list = os.listdir('/app')
+for file in file_list:
+    print(file)
+
 print("cookie_file_path:{}".format(cookie_file_path))
 CHATGPT_APY_KEY = conf['chatgpt_apy_key']
 
