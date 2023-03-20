@@ -610,6 +610,7 @@ async def handle_info(source, req_data):
             print("PICASSO")
             try:
                 en_propmt = ai_cli.ask("翻译成英文：{}".format(text_info))
+                print("翻译结果:" + en_propmt)
             except Exception as translate_error:
                 print("translate_error:{}".format(translate_error))
                 en_propmt = text_info
