@@ -730,7 +730,7 @@ def process_new_bing():
 
 ################################rgzn start####################################
 @app.route("/rgzn", methods=["POST"])
-def get_data():
+def rgzn_get_data():
     # 第一步验证：是否是post请求
     if request.method == "POST":
         print("rgzn doraemon请求进来了")
@@ -753,7 +753,7 @@ def get_data():
 
 
 @app.route("/rgznecho", methods=["POST"])
-def process_echo():
+def rgzn_process_echo():
     # 第一步验证：是否是post请求
     if request.method == "POST":
         print("rgzn echo请求进来了")
@@ -775,7 +775,7 @@ def process_echo():
 
 
 @app.route("/rgznpicasso", methods=["POST"])
-def process_picasso():
+def rgzn_process_picasso():
     # 第一步验证：是否是post请求
     if request.method == "POST":
         print("rgzn picasso请求进来了")
@@ -797,7 +797,7 @@ def process_picasso():
 
 
 @app.route("/rgznbing", methods=["POST"])
-def process_new_bing():
+def rgzn_process_new_bing():
     # 第一步验证：是否是post请求
     if request.method == "POST":
         print("rgzn bing请求进来了")
