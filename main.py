@@ -33,6 +33,12 @@ conf = {
     "dingding_doraemon_app_secret": os.environ.get('dingding_doraemon_app_secret'),
     "dingding_picasso_app_secret":  os.environ.get('dingding_picasso_app_secret'),
     "dingding_bing_app_secret": os.environ.get('dingding_bing_app_secret'),
+
+    "rgzn_dingding_echo_app_secret": os.environ.get('rgzn_dingding_echo_app_secret'),
+    "rgzn_dingding_doraemon_app_secret": os.environ.get('rgzn_dingding_doraemon_app_secret'),
+    "rgzn_dingding_picasso_app_secret":  os.environ.get('rgzn_dingding_picasso_app_secret'),
+    "rgzn_dingding_bing_app_secret": os.environ.get('rgzn_dingding_bing_app_secret'),
+
     "poe_form_key": os.environ.get('poe_form_key'),
     "poe_cookie":  os.environ.get('poe_cookie'),
     "chatgpt_apy_key":os.environ.get('chatgpt_apy_key'),
@@ -40,11 +46,7 @@ conf = {
 
 cookie_file_path = os.path.join(app.root_path, 'cookies.json')
 
-file_list = os.listdir('/app')
-for file in file_list:
-    print(file)
 
-print("cookie_file_path:{}".format(cookie_file_path))
 CHATGPT_APY_KEY = conf['chatgpt_apy_key']
 
 class BotType(Enum):
@@ -639,7 +641,7 @@ async def handle_info(source, req_data):
 def get_data():
     # 第一步验证：是否是post请求
     if request.method == "POST":
-        # print(request.headers)
+        print("dev doraemon请求进来了")
         # 签名验证 获取headers中的Timestamp和Sign
         timestamp = request.headers.get('Timestamp')
         sign = request.headers.get('Sign')
@@ -662,7 +664,7 @@ def get_data():
 def process_echo():
     # 第一步验证：是否是post请求
     if request.method == "POST":
-        # print(request.headers)
+        print("dev echo请求进来了")
         # 签名验证 获取headers中的Timestamp和Sign
         timestamp = request.headers.get('Timestamp')
         sign = request.headers.get('Sign')
@@ -684,7 +686,7 @@ def process_echo():
 def process_picasso():
     # 第一步验证：是否是post请求
     if request.method == "POST":
-        # print(request.headers)
+        print("dev picasso请求进来了")
         # 签名验证 获取headers中的Timestamp和Sign
         timestamp = request.headers.get('Timestamp')
         sign = request.headers.get('Sign')
@@ -706,7 +708,7 @@ def process_picasso():
 def process_new_bing():
     # 第一步验证：是否是post请求
     if request.method == "POST":
-        print("请求进来了")
+        print("dev doraemon请求进来了")
         # print(request.headers)
         # 签名验证 获取headers中的Timestamp和Sign
         timestamp = request.headers.get('Timestamp')
@@ -723,9 +725,100 @@ def process_new_bing():
 
     print('有get请求')
     return 'sss'
+#################################开发 end##################################
 
 
-##########################################################################
+################################rgzn start####################################
+@app.route("/rgzn", methods=["POST"])
+def get_data():
+    # 第一步验证：是否是post请求
+    if request.method == "POST":
+        print("rgzn doraemon请求进来了")
+        # 签名验证 获取headers中的Timestamp和Sign
+        timestamp = request.headers.get('Timestamp')
+        sign = request.headers.get('Sign')
+        # 第二步验证：签名是否有效
+        if DingdingUtil.check_sig(timestamp, conf['rgzn_dingding_doraemon_app_secret']) == sign:
+            # 获取、处理数据
+            req_data = json.loads(str(request.data, 'utf-8'))
+            # 调用数据处理函数
+            asyncio.run(handle_info(BotType.DORAEMON, req_data))
+            return 'hhh'
+
+        print('验证不通过')
+        return 'ppp'
+
+    print('有get请求')
+    return 'sss'
+
+
+@app.route("/rgznecho", methods=["POST"])
+def process_echo():
+    # 第一步验证：是否是post请求
+    if request.method == "POST":
+        print("rgzn echo请求进来了")
+        # 签名验证 获取headers中的Timestamp和Sign
+        timestamp = request.headers.get('Timestamp')
+        sign = request.headers.get('Sign')
+        # 第二步验证：签名是否有效
+        if DingdingUtil.check_sig(timestamp, conf['rgzn_dingding_echo_app_secret']) == sign:
+            # 获取、处理数据
+            req_data = json.loads(str(request.data, 'utf-8'))
+            asyncio.run(handle_info(BotType.ECHO, req_data))
+            return 'hhh'
+
+        print('验证不通过')
+        return 'ppp'
+
+    print('有get请求')
+    return 'sss'
+
+
+@app.route("/rgznpicasso", methods=["POST"])
+def process_picasso():
+    # 第一步验证：是否是post请求
+    if request.method == "POST":
+        print("rgzn picasso请求进来了")
+        # 签名验证 获取headers中的Timestamp和Sign
+        timestamp = request.headers.get('Timestamp')
+        sign = request.headers.get('Sign')
+        # 第二步验证：签名是否有效
+        if DingdingUtil.check_sig(timestamp, conf['rgzn_dingding_picasso_app_secret']) == sign:
+            # 获取、处理数据
+            req_data = json.loads(str(request.data, 'utf-8'))
+            asyncio.run(handle_info(BotType.PICASSO, req_data))
+            return 'hhh'
+
+        print('验证不通过')
+        return 'ppp'
+
+    print('有get请求')
+    return 'sss'
+
+
+@app.route("/rgznbing", methods=["POST"])
+def process_new_bing():
+    # 第一步验证：是否是post请求
+    if request.method == "POST":
+        print("rgzn bing请求进来了")
+        # print(request.headers)
+        # 签名验证 获取headers中的Timestamp和Sign
+        timestamp = request.headers.get('Timestamp')
+        sign = request.headers.get('Sign')
+        # 第二步验证：签名是否有效
+        if DingdingUtil.check_sig(timestamp, conf['rgzn_dingding_bing_app_secret']) == sign:
+            # 获取、处理数据
+            req_data = json.loads(str(request.data, 'utf-8'))
+            asyncio.run(handle_info(BotType.BING, req_data))
+            return 'hhh'
+
+        print('验证不通过')
+        return 'ppp'
+
+    print('有get请求')
+    return 'sss'
+
+#################################rgzn end#########################################
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8081, debug=True)
     # result = phind.search_phind("java programming")
