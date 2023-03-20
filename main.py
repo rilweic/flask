@@ -558,7 +558,7 @@ async def handle_info(source, req_data):
     else:
         rt = None
         tt = """{} 回复：{} """.format('AI', text_info if len(text_info) <= 12 else "{}...".format(text_info[:12]))
-        print("请求为：{}".format(text_info))
+        print("请求为：{},发送人id:{}".format(text_info,senderid))
         if source is BotType.DORAEMON:
             print("DORAEMON")
             if is_chatgpt:
