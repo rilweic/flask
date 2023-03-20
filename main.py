@@ -219,9 +219,9 @@ class PhindSearchResult(object):
 class PhindSearch(object):
     def __init__(self):
         self.base_url = 'https://phind.com'
-        self.phind_search = "https://phind.com/api/search"
-        self.phind_tldr = "https://phind.com/api/tldr"
-        self.phind_suggested = "https://phind.com/api/suggestedfollowups"
+        self.phind_search = "https://phind.com/api/bing/search"
+        self.phind_tldr = "https://phind.com/api/infer/detailed"
+        self.phind_suggested = "https://phind.com/api/infer/followup/suggestions"
 
     def search_phind(self, key_word):
         data = {"freshness": "",
