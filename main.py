@@ -19,41 +19,42 @@ import os
 import requests
 from EdgeGPT import Chatbot, ConversationStyle
 from bs4 import BeautifulSoup
-from flask import request, Flask
+from flask import request, Flask, jsonify
 from requests.adapters import HTTPAdapter
 from urllib3.util.ssl_ import create_urllib3_context
+from queue import Queue
+from threading import Thread, Lock
 
 app = Flask(__name__)
+task_queue = Queue()
 
 EXPIRE_TIME = int(time.time()) - 1
 BING_COUNT = 0
 
+lock_doreamon = Lock()
+lock_echo = Lock()
+lock_bing = Lock()
+lock_picasso = Lock()
+
 conf = {
     "dingding_echo_app_secret": os.environ.get('dingding_echo_app_secret'),
     "dingding_doraemon_app_secret": os.environ.get('dingding_doraemon_app_secret'),
-    "dingding_picasso_app_secret":  os.environ.get('dingding_picasso_app_secret'),
+    "dingding_picasso_app_secret": os.environ.get('dingding_picasso_app_secret'),
     "dingding_bing_app_secret": os.environ.get('dingding_bing_app_secret'),
 
     "rgzn_dingding_echo_app_secret": os.environ.get('rgzn_dingding_echo_app_secret'),
     "rgzn_dingding_doraemon_app_secret": os.environ.get('rgzn_dingding_doraemon_app_secret'),
-    "rgzn_dingding_picasso_app_secret":  os.environ.get('rgzn_dingding_picasso_app_secret'),
+    "rgzn_dingding_picasso_app_secret": os.environ.get('rgzn_dingding_picasso_app_secret'),
     "rgzn_dingding_bing_app_secret": os.environ.get('rgzn_dingding_bing_app_secret'),
 
     "poe_form_key": os.environ.get('poe_form_key'),
-    "poe_cookie":  os.environ.get('poe_cookie'),
-    "chatgpt_apy_key":os.environ.get('chatgpt_apy_key'),
+    "poe_cookie": os.environ.get('poe_cookie'),
+    "chatgpt_apy_key": os.environ.get('chatgpt_apy_key'),
 }
 
 cookie_file_path = os.path.join(app.root_path, 'cookies.json')
 
-
 CHATGPT_APY_KEY = conf['chatgpt_apy_key']
-
-class BotType(Enum):
-    DORAEMON = 1
-    ECHO = 2
-    PICASSO = 3
-    BING = 4
 
 
 # 钉钉工具类
@@ -530,16 +531,19 @@ class MsgWrapper(object):
         return all_msg
 
 
-print("#################################### 初始化 ######################################")
+print("#################################### 初始化各个机器人 ######################################")
+
 ai_cli = OpenAIFunction(api_key=CHATGPT_APY_KEY)
 phind = PhindSearch()
 echo = Echo()
 sd = FreeStableDuffision()
 g_search = SearchGoogle()
 bing = Chatbot(cookiePath=cookie_file_path)
+print("#################################### 完成各个机器人初始化 ######################################")
 
 
-async def handle_info(source, req_data):
+def process_doraemon(req_data):
+    print("DORAEMON")
     text_info = req_data['text']['content'].strip()
     webhook_url = req_data['sessionWebhook']
     senderid = req_data['senderId']
@@ -548,281 +552,171 @@ async def handle_info(source, req_data):
     if str(text_info[:7]).lower() == "chatgpt":
         text_info = str(text_info[7:]).strip()
         is_chatgpt = True
-
-    if text_info == '李超':
-        title = "这是一个大帅哥"
-        text = """# 请叫他天才！！！！！！！！！
-               """
-        # 调用函数，发送markdown消息
-        DingdingUtil.sendMarkdown(senderid, title, text, webhook_url)
+    tt = """{} 回复：{} """.format('AI', text_info if len(text_info) <= 12 else "{}...".format(text_info[:12]))
+    if is_chatgpt:
+        # ans = ai_cli.ask(text_info)
+        poe_bot = Echo(4)  # 4默认为ChatGPT
+        ans = poe_bot.ask_echo(text_info)
+        # ans = ai_cli.request_chatgpt_server(text_info)
+        # 发送ChatGPT的消息
+        DingdingUtil.sendMarkdown(senderid, tt, MsgWrapper.wrap_markdown_msg(text_info, ans), webhook_url)
+        poe_bot.clear_context(poe_bot.chat_id)
     else:
-        rt = None
-        tt = """{} 回复：{} """.format('AI', text_info if len(text_info) <= 12 else "{}...".format(text_info[:12]))
-        print("请求为：{},发送人id:{}".format(text_info,senderid))
-        if source is BotType.DORAEMON:
-            print("DORAEMON")
-            if is_chatgpt:
-                # ans = ai_cli.ask(text_info)
-                poe_bot = Echo(4) # 4默认为ChatGPT
-                ans = poe_bot.ask_echo(text_info)
-                # ans = ai_cli.request_chatgpt_server(text_info)
-                # 发送ChatGPT的消息
-                DingdingUtil.sendMarkdown(senderid, tt, MsgWrapper.wrap_markdown_msg(text_info, ans), webhook_url)
-                poe_bot.clear_context(poe_bot.chat_id)
+        phind_result = None
+        bing_pages = ''
+        suggest_items = ''
+        content = ''
+
+        try:
+            phind_result = phind.search_phind(text_info)
+        except Exception as phind_error:
+            print(phind_error)
+        if phind_result is not None:
+            bing_pages = MsgWrapper.wrap_bing_links(phind_result.web_pages)
+            suggest_items = MsgWrapper.wrap_list_item(phind_result.suggestions)
+            content = MsgWrapper.wrap_markdown_msg(text_info, phind_result.content)
+        google_pages = g_search.search(text_info, 15, advanced=True)
+        if len(google_pages) > 0:
+            google_pages = MsgWrapper.wrap_google_links(google_pages)
+
+        if len(content) > 0:
+            # 先发具体内容
+            DingdingUtil.sendMarkdown(senderid, tt, content, webhook_url)
+
+        more_info = ""
+        if len(google_pages) > 0:
+            more_info = more_info + MsgWrapper.wrap_link_title("谷歌搜索：", google_pages)
+        if len(bing_pages):
+            more_info = more_info + MsgWrapper.wrap_link_title("必应搜索：", bing_pages)
+        if len(suggest_items):
+            more_info = more_info + MsgWrapper.wrap_link_title("猜你想知道：", suggest_items)
+        # 再发更多链接
+        DingdingUtil.sendMarkdown(senderid, tt, more_info, webhook_url)
+
+
+def process_echo(req_data):
+    print("Echo")
+    text_info = req_data['text']['content'].strip()
+    webhook_url = req_data['sessionWebhook']
+    senderid = req_data['senderId']
+
+    tt = """{} 回复：{} """.format('AI', text_info if len(text_info) <= 12 else "{}...".format(text_info[:12]))
+    ans = echo.ask_echo(text_info)
+    # 发送echo的钉钉消息
+    DingdingUtil.sendMarkdown(senderid, tt, MsgWrapper.wrap_markdown_msg(text_info, ans), webhook_url)
+
+
+def process_picasso(req_data):
+    print("PICASSO")
+    text_info = req_data['text']['content'].strip()
+    webhook_url = req_data['sessionWebhook']
+    senderid = req_data['senderId']
+
+    tt = """{} 回复：{} """.format('AI', text_info if len(text_info) <= 12 else "{}...".format(text_info[:12]))
+    try:
+        en_propmt = ai_cli.ask("翻译成英文：{}".format(text_info))
+        print("翻译结果:" + en_propmt)
+    except Exception as translate_error:
+        print("translate_error:{}".format(translate_error))
+        en_propmt = text_info
+    try:
+        pic_url = sd.generate_pic(en_propmt)
+    except Exception as dalle:
+        print('dalle:{}'.format(dalle))
+        pic_url = ai_cli.generate_pic(en_propmt)
+
+    DingdingUtil.sendMarkdown(senderid, tt, MsgWrapper.wrap_markdown_pic(tt, pic_url), webhook_url)
+
+
+async def process_bing(req_data):
+    print("BING")
+    text_info = req_data['text']['content'].strip()
+    webhook_url = req_data['sessionWebhook']
+    senderid = req_data['senderId']
+
+    tt = """{} 回复：{} """.format('AI', text_info if len(text_info) <= 12 else "{}...".format(text_info[:12]))
+    # 设置重置次数
+    global BING_COUNT
+    if BING_COUNT > 10:
+        await bing.reset()
+    BING_COUNT = BING_COUNT + 1
+    resp_dict = await bing.ask(text_info, conversation_style=ConversationStyle.creative)
+    try:
+        result = MsgWrapper.process_new_bing_response(resp_dict)
+    except Exception as e:
+        print(e)
+        result = "😭 答不上来，换个问题或者问问别的机器人吧，群里有个Echo，它一直活着，老铁"
+    DingdingUtil.sendMarkdown(senderid, tt, result, webhook_url)
+
+
+@app.route("/<robot>", methods=["POST"])
+def processer(robot):
+    if request.method == "POST":
+        print("请求进来了，请求机器人为：{}".format(robot))
+        app_key = None
+        # 根据不同的机器人获取不同的apikey
+        if robot == "doraemon":
+            app_key = conf['dingding_doraemon_app_secret']
+        elif robot == 'echo':
+            app_key = conf['dingding_echo_app_secret']
+        elif robot == 'picasso':
+            app_key = conf['dingding_picasso_app_secret']
+        elif robot == 'bing':
+            app_key = conf['dingding_bing_app_secret']
+        elif robot == 'rgzndoraemon':
+            app_key = conf['rgzn_dingding_doraemon_app_secret']
+        elif robot == 'rgznecho':
+            app_key = conf['rgzn_dingding_echo_app_secret']
+        elif robot == 'rgznpicasso':
+            app_key = conf['rgzn_dingding_picasso_app_secret']
+        elif robot == 'rgznbing':
+            app_key = conf['rgzn_dingding_bing_app_secret']
+
+        timestamp = request.headers.get('Timestamp')
+        sign = request.headers.get('Sign')
+        # 第二步验证：签名是否有效
+        if DingdingUtil.check_sig(timestamp, app_key) == sign:
+            # 获取、处理数据
+            req_data = json.loads(str(request.data, 'utf-8'))
+            # 将数据加入队列
+            task_queue.put({"robot": robot, "data": req_data})
+
+            return jsonify({'status': 'Task added to queue'})
+
+        print('验证不通过')
+        return 'ppp'
+
+
+# 从队列中获取数据并给到对应的处理函数处理
+def worker():
+    while True:
+        # 加上try，防止线程因为异常退出
+        try:
+            if not task_queue.empty():
+                wrapper_request = task_queue.get()
+                if "doraemon" in wrapper_request['robot']:
+                    with lock_doreamon:
+                        process_doraemon(wrapper_request['data'])
+                if "echo" in wrapper_request['robot']:
+                    with lock_echo:
+                        process_echo(wrapper_request['data'])
+                if "picasso" in wrapper_request['robot']:
+                    with lock_picasso:
+                        process_picasso(wrapper_request['data'])
+                if "bing" in wrapper_request['robot']:
+                    with lock_bing:
+                        asyncio.run(process_bing(wrapper_request['data']))
+                task_queue.task_done()
             else:
-                phind_result = None
-                bing_pages = ''
-                suggest_items = ''
-                content = ''
-
-                try:
-                    phind_result = phind.search_phind(text_info)
-                except Exception as phind_error:
-                    print(phind_error)
-                if phind_result is not None:
-                    bing_pages = MsgWrapper.wrap_bing_links(phind_result.web_pages)
-                    suggest_items = MsgWrapper.wrap_list_item(phind_result.suggestions)
-                    content = MsgWrapper.wrap_markdown_msg(text_info, phind_result.content)
-                google_pages = g_search.search(text_info, 15, advanced=True)
-                if len(google_pages) > 0:
-                    google_pages = MsgWrapper.wrap_google_links(google_pages)
-
-                if len(content) > 0:
-                    # 先发具体内容
-                    DingdingUtil.sendMarkdown(senderid, tt, content, webhook_url)
-
-                more_info = ""
-                if len(google_pages) > 0:
-                    more_info = more_info + MsgWrapper.wrap_link_title("谷歌搜索：", google_pages)
-                if len(bing_pages):
-                    more_info = more_info + MsgWrapper.wrap_link_title("必应搜索：", bing_pages)
-                if len(suggest_items):
-                    more_info = more_info + MsgWrapper.wrap_link_title("猜你想知道：", suggest_items)
-                # 再发更多链接
-                DingdingUtil.sendMarkdown(senderid, tt, more_info, webhook_url)
-
-        elif source is BotType.ECHO:
-            print("Echo")
-            ans = echo.ask_echo(text_info)
-            # 发送echo的钉钉消息
-            DingdingUtil.sendMarkdown(senderid, tt, MsgWrapper.wrap_markdown_msg(text_info, ans), webhook_url)
-        elif source is BotType.PICASSO:
-            print("PICASSO")
-            try:
-                en_propmt = ai_cli.ask("翻译成英文：{}".format(text_info))
-                print("翻译结果:" + en_propmt)
-            except Exception as translate_error:
-                print("translate_error:{}".format(translate_error))
-                en_propmt = text_info
-            try:
-                pic_url = sd.generate_pic(en_propmt)
-            except Exception as dalle:
-                print('dalle:{}'.format(dalle))
-                pic_url = ai_cli.generate_pic(en_propmt)
-
-            DingdingUtil.sendMarkdown(senderid, tt, MsgWrapper.wrap_markdown_pic(tt, pic_url), webhook_url)
-        else:
-            print("BING")
-            # 设置重置次数
-            global BING_COUNT
-            if BING_COUNT > 10:
-                await bing.reset()
-            BING_COUNT = BING_COUNT + 1
-            resp_dict = await bing.ask(text_info, conversation_style=ConversationStyle.creative)
-            try:
-                result = MsgWrapper.process_new_bing_response(resp_dict)
-            except Exception as e:
-                print(e)
-                result = "😭 答不上来，换个问题或者问问别的机器人吧，群里有个Echo，它一直活着，老铁"
-            DingdingUtil.sendMarkdown(senderid, tt, result, webhook_url)
+                time.sleep(1)
+        except Exception as e:
+            print(e)
 
 
-##########################################################################
-@app.route("/", methods=["POST"])
-def get_data():
-    # 第一步验证：是否是post请求
-    if request.method == "POST":
-        print("dev doraemon请求进来了")
-        # 签名验证 获取headers中的Timestamp和Sign
-        timestamp = request.headers.get('Timestamp')
-        sign = request.headers.get('Sign')
-        # 第二步验证：签名是否有效
-        if DingdingUtil.check_sig(timestamp, conf['dingding_doraemon_app_secret']) == sign:
-            # 获取、处理数据
-            req_data = json.loads(str(request.data, 'utf-8'))
-            # 调用数据处理函数
-            asyncio.run(handle_info(BotType.DORAEMON, req_data))
-            return 'hhh'
+print("#################################### 启动处理线程 ######################################")
+thread = Thread(target=worker)
+thread.daemon = True
+thread.start()
 
-        print('验证不通过')
-        return 'ppp'
-
-    print('有get请求')
-    return 'sss'
-
-
-@app.route("/echo", methods=["POST"])
-def process_echo():
-    # 第一步验证：是否是post请求
-    if request.method == "POST":
-        print("dev echo请求进来了")
-        # 签名验证 获取headers中的Timestamp和Sign
-        timestamp = request.headers.get('Timestamp')
-        sign = request.headers.get('Sign')
-        # 第二步验证：签名是否有效
-        if DingdingUtil.check_sig(timestamp, conf['dingding_echo_app_secret']) == sign:
-            # 获取、处理数据
-            req_data = json.loads(str(request.data, 'utf-8'))
-            asyncio.run(handle_info(BotType.ECHO, req_data))
-            return 'hhh'
-
-        print('验证不通过')
-        return 'ppp'
-
-    print('有get请求')
-    return 'sss'
-
-
-@app.route("/picasso", methods=["POST"])
-def process_picasso():
-    # 第一步验证：是否是post请求
-    if request.method == "POST":
-        print("dev picasso请求进来了")
-        # 签名验证 获取headers中的Timestamp和Sign
-        timestamp = request.headers.get('Timestamp')
-        sign = request.headers.get('Sign')
-        # 第二步验证：签名是否有效
-        if DingdingUtil.check_sig(timestamp, conf['dingding_picasso_app_secret']) == sign:
-            # 获取、处理数据
-            req_data = json.loads(str(request.data, 'utf-8'))
-            asyncio.run(handle_info(BotType.PICASSO, req_data))
-            return 'hhh'
-
-        print('验证不通过')
-        return 'ppp'
-
-    print('有get请求')
-    return 'sss'
-
-
-@app.route("/bing", methods=["POST"])
-def process_new_bing():
-    # 第一步验证：是否是post请求
-    if request.method == "POST":
-        print("dev doraemon请求进来了")
-        # print(request.headers)
-        # 签名验证 获取headers中的Timestamp和Sign
-        timestamp = request.headers.get('Timestamp')
-        sign = request.headers.get('Sign')
-        # 第二步验证：签名是否有效
-        if DingdingUtil.check_sig(timestamp, conf['dingding_bing_app_secret']) == sign:
-            # 获取、处理数据
-            req_data = json.loads(str(request.data, 'utf-8'))
-            asyncio.run(handle_info(BotType.BING, req_data))
-            return 'hhh'
-
-        print('验证不通过')
-        return 'ppp'
-
-    print('有get请求')
-    return 'sss'
-#################################开发 end##################################
-
-
-################################rgzn start####################################
-@app.route("/rgzn", methods=["POST"])
-def rgzn_get_data():
-    # 第一步验证：是否是post请求
-    if request.method == "POST":
-        print("rgzn doraemon请求进来了")
-        # 签名验证 获取headers中的Timestamp和Sign
-        timestamp = request.headers.get('Timestamp')
-        sign = request.headers.get('Sign')
-        # 第二步验证：签名是否有效
-        if DingdingUtil.check_sig(timestamp, conf['rgzn_dingding_doraemon_app_secret']) == sign:
-            # 获取、处理数据
-            req_data = json.loads(str(request.data, 'utf-8'))
-            # 调用数据处理函数
-            asyncio.run(handle_info(BotType.DORAEMON, req_data))
-            return 'hhh'
-
-        print('验证不通过')
-        return 'ppp'
-
-    print('有get请求')
-    return 'sss'
-
-
-@app.route("/rgznecho", methods=["POST"])
-def rgzn_process_echo():
-    # 第一步验证：是否是post请求
-    if request.method == "POST":
-        print("rgzn echo请求进来了")
-        # 签名验证 获取headers中的Timestamp和Sign
-        timestamp = request.headers.get('Timestamp')
-        sign = request.headers.get('Sign')
-        # 第二步验证：签名是否有效
-        if DingdingUtil.check_sig(timestamp, conf['rgzn_dingding_echo_app_secret']) == sign:
-            # 获取、处理数据
-            req_data = json.loads(str(request.data, 'utf-8'))
-            asyncio.run(handle_info(BotType.ECHO, req_data))
-            return 'hhh'
-
-        print('验证不通过')
-        return 'ppp'
-
-    print('有get请求')
-    return 'sss'
-
-
-@app.route("/rgznpicasso", methods=["POST"])
-def rgzn_process_picasso():
-    # 第一步验证：是否是post请求
-    if request.method == "POST":
-        print("rgzn picasso请求进来了")
-        # 签名验证 获取headers中的Timestamp和Sign
-        timestamp = request.headers.get('Timestamp')
-        sign = request.headers.get('Sign')
-        # 第二步验证：签名是否有效
-        if DingdingUtil.check_sig(timestamp, conf['rgzn_dingding_picasso_app_secret']) == sign:
-            # 获取、处理数据
-            req_data = json.loads(str(request.data, 'utf-8'))
-            asyncio.run(handle_info(BotType.PICASSO, req_data))
-            return 'hhh'
-
-        print('验证不通过')
-        return 'ppp'
-
-    print('有get请求')
-    return 'sss'
-
-
-@app.route("/rgznbing", methods=["POST"])
-def rgzn_process_new_bing():
-    # 第一步验证：是否是post请求
-    if request.method == "POST":
-        print("rgzn bing请求进来了")
-        # print(request.headers)
-        # 签名验证 获取headers中的Timestamp和Sign
-        timestamp = request.headers.get('Timestamp')
-        sign = request.headers.get('Sign')
-        # 第二步验证：签名是否有效
-        if DingdingUtil.check_sig(timestamp, conf['rgzn_dingding_bing_app_secret']) == sign:
-            # 获取、处理数据
-            req_data = json.loads(str(request.data, 'utf-8'))
-            asyncio.run(handle_info(BotType.BING, req_data))
-            return 'hhh'
-
-        print('验证不通过')
-        return 'ppp'
-
-    print('有get请求')
-    return 'sss'
-
-#################################rgzn end#########################################
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8081, debug=True)
-    # result = phind.search_phind("java programming")
-    # print(result)
-
-    # print(MsgWrapper.process_new_bing_response(di))
