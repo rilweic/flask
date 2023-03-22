@@ -543,7 +543,6 @@ print("#################################### 完成各个机器人初始化 #####
 
 
 def process_doraemon(req_data):
-    print("DORAEMON 正在处理 【{}】 发送的消息 ................".format(req_data['senderNick']))
     text_info = req_data['text']['content'].strip()
     webhook_url = req_data['sessionWebhook']
     senderid = req_data['senderId']
@@ -553,6 +552,7 @@ def process_doraemon(req_data):
         text_info = str(text_info[7:]).strip()
         is_chatgpt = True
     tt = """{} 回复：{} """.format('AI', text_info if len(text_info) <= 12 else "{}...".format(text_info[:12]))
+    print("DORAEMON 正在处理 【{}】 发送的消息 【{}】 ................".format(req_data['senderNick'], text_info[:12]))
     if is_chatgpt:
         # ans = ai_cli.ask(text_info)
         poe_bot = Echo(4)  # 4默认为ChatGPT
@@ -595,8 +595,8 @@ def process_doraemon(req_data):
 
 
 def process_echo(req_data):
-    print("Echo 正在处理 【{}】 发送的消息 ................".format(req_data['senderNick']))
     text_info = req_data['text']['content'].strip()
+    print("Echo 正在处理 【{}】 发送的消息 【{}】................".format(req_data['senderNick'], text_info[:12]))
     webhook_url = req_data['sessionWebhook']
     senderid = req_data['senderId']
 
@@ -607,8 +607,8 @@ def process_echo(req_data):
 
 
 def process_picasso(req_data):
-    print("PICASSO 正在处理 【{}】 发送的消息 ................".format(req_data['senderNick']))
     text_info = req_data['text']['content'].strip()
+    print("PICASSO 正在处理 【{}】 发送的消息 【{}】................".format(req_data['senderNick'], text_info[:12]))
     webhook_url = req_data['sessionWebhook']
     senderid = req_data['senderId']
 
@@ -629,8 +629,8 @@ def process_picasso(req_data):
 
 
 async def process_bing(req_data):
-    print("BING 正在处理 【{}】 发送的消息 ................".format(req_data['senderNick']))
     text_info = req_data['text']['content'].strip()
+    print("BING 正在处理 【{}】 发送的消息 【{}】................".format(req_data['senderNick'], text_info[:12]))
     webhook_url = req_data['sessionWebhook']
     senderid = req_data['senderId']
 
