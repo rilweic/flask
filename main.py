@@ -11,7 +11,6 @@ import hmac
 import json
 import threading
 import time
-from enum import Enum
 
 import asyncio
 import openai
@@ -544,7 +543,7 @@ print("#################################### 完成各个机器人初始化 #####
 
 
 def process_doraemon(req_data):
-    print("DORAEMON")
+    print("DORAEMON 正在处理 【{}】 发送的消息 ................".format(req_data['senderNick']))
     text_info = req_data['text']['content'].strip()
     webhook_url = req_data['sessionWebhook']
     senderid = req_data['senderId']
@@ -596,7 +595,7 @@ def process_doraemon(req_data):
 
 
 def process_echo(req_data):
-    print("Echo")
+    print("Echo 正在处理 【{}】 发送的消息 ................".format(req_data['senderNick']))
     text_info = req_data['text']['content'].strip()
     webhook_url = req_data['sessionWebhook']
     senderid = req_data['senderId']
@@ -608,7 +607,7 @@ def process_echo(req_data):
 
 
 def process_picasso(req_data):
-    print("PICASSO")
+    print("PICASSO 正在处理 【{}】 发送的消息 ................".format(req_data['senderNick']))
     text_info = req_data['text']['content'].strip()
     webhook_url = req_data['sessionWebhook']
     senderid = req_data['senderId']
@@ -630,7 +629,7 @@ def process_picasso(req_data):
 
 
 async def process_bing(req_data):
-    print("BING")
+    print("BING 正在处理 【{}】 发送的消息 ................".format(req_data['senderNick']))
     text_info = req_data['text']['content'].strip()
     webhook_url = req_data['sessionWebhook']
     senderid = req_data['senderId']
@@ -653,7 +652,6 @@ async def process_bing(req_data):
 @app.route("/<robot>", methods=["POST"])
 def processer(robot):
     if request.method == "POST":
-        print("请求进来了，请求机器人为：{}".format(robot))
         app_key = None
         # 根据不同的机器人获取不同的apikey
         if robot == "doraemon":
