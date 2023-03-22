@@ -9,6 +9,7 @@ import base64
 import hashlib
 import hmac
 import json
+import threading
 import time
 from enum import Enum
 
@@ -687,26 +688,31 @@ def processer(robot):
         return 'ppp'
 
 
+def process_data(wrapper_request):
+    if "doraemon" in wrapper_request['robot']:
+        with lock_doreamon:
+            process_doraemon(wrapper_request['data'])
+    if "echo" in wrapper_request['robot']:
+        with lock_echo:
+            process_echo(wrapper_request['data'])
+    if "picasso" in wrapper_request['robot']:
+        with lock_picasso:
+            process_picasso(wrapper_request['data'])
+    if "bing" in wrapper_request['robot']:
+        with lock_bing:
+            asyncio.run(process_bing(wrapper_request['data']))
+    task_queue.task_done()
+
+
 # 从队列中获取数据并给到对应的处理函数处理
-def worker():
+def process_queue():
     while True:
         # 加上try，防止线程因为异常退出
         try:
             if not task_queue.empty():
                 wrapper_request = task_queue.get()
-                if "doraemon" in wrapper_request['robot']:
-                    with lock_doreamon:
-                        process_doraemon(wrapper_request['data'])
-                if "echo" in wrapper_request['robot']:
-                    with lock_echo:
-                        process_echo(wrapper_request['data'])
-                if "picasso" in wrapper_request['robot']:
-                    with lock_picasso:
-                        process_picasso(wrapper_request['data'])
-                if "bing" in wrapper_request['robot']:
-                    with lock_bing:
-                        asyncio.run(process_bing(wrapper_request['data']))
-                task_queue.task_done()
+                task_thread = threading.Thread(target=process_data, args=(wrapper_request,))
+                task_thread.start()
             else:
                 time.sleep(1)
         except Exception as e:
@@ -714,7 +720,7 @@ def worker():
 
 
 print("#################################### 启动处理线程 ######################################")
-thread = Thread(target=worker)
+thread = Thread(target=process_queue)
 thread.daemon = True
 thread.start()
 
