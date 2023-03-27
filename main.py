@@ -24,6 +24,9 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.ssl_ import create_urllib3_context
 from queue import Queue
 from threading import Thread, Lock
+import pytz
+from datetime import datetime
+from functools import wraps
 
 app = Flask(__name__)
 task_queue = Queue()
@@ -542,6 +545,25 @@ bing = Chatbot(cookiePath=cookie_file_path)
 print("#################################### 完成各个机器人初始化 ######################################")
 
 
+def log_args_and_time_decorator(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        # 获取当前时间
+        now = datetime.now()
+
+        # 将当前时间转换为东八区时间
+        tz_eastern = pytz.timezone('Asia/Shanghai')
+        time_eastern = tz_eastern.localize(now)
+
+        print("{} {} 正在处理 【{}】 发送的消息 【{}】 ................".format(time_eastern, func.__name__, args[0]['senderNick'],
+                                                                   args[0]['text']['content'].strip()[:12]))
+        result = func(*args, **kwargs)
+        return result
+
+    return wrapper
+
+
+@log_args_and_time_decorator
 def process_doraemon(req_data):
     text_info = req_data['text']['content'].strip()
     webhook_url = req_data['sessionWebhook']
@@ -552,7 +574,6 @@ def process_doraemon(req_data):
         text_info = str(text_info[7:]).strip()
         is_chatgpt = True
     tt = """{} 回复：{} """.format('AI', text_info if len(text_info) <= 12 else "{}...".format(text_info[:12]))
-    print("DORAEMON 正在处理 【{}】 发送的消息 【{}】 ................".format(req_data['senderNick'], text_info[:12]))
     if is_chatgpt:
         # ans = ai_cli.ask(text_info)
         poe_bot = Echo(4)  # 4默认为ChatGPT
@@ -594,9 +615,9 @@ def process_doraemon(req_data):
         DingdingUtil.sendMarkdown(senderid, tt, more_info, webhook_url)
 
 
+@log_args_and_time_decorator
 def process_echo(req_data):
     text_info = req_data['text']['content'].strip()
-    print("Echo 正在处理 【{}】 发送的消息 【{}】................".format(req_data['senderNick'], text_info[:12]))
     webhook_url = req_data['sessionWebhook']
     senderid = req_data['senderId']
 
@@ -606,9 +627,9 @@ def process_echo(req_data):
     DingdingUtil.sendMarkdown(senderid, tt, MsgWrapper.wrap_markdown_msg(text_info, ans), webhook_url)
 
 
+@log_args_and_time_decorator
 def process_picasso(req_data):
     text_info = req_data['text']['content'].strip()
-    print("PICASSO 正在处理 【{}】 发送的消息 【{}】................".format(req_data['senderNick'], text_info[:12]))
     webhook_url = req_data['sessionWebhook']
     senderid = req_data['senderId']
 
@@ -628,9 +649,9 @@ def process_picasso(req_data):
     DingdingUtil.sendMarkdown(senderid, tt, MsgWrapper.wrap_markdown_pic(tt, pic_url), webhook_url)
 
 
+@log_args_and_time_decorator
 async def process_bing(req_data):
     text_info = req_data['text']['content'].strip()
-    print("BING 正在处理 【{}】 发送的消息 【{}】................".format(req_data['senderNick'], text_info[:12]))
     webhook_url = req_data['sessionWebhook']
     senderid = req_data['senderId']
 
