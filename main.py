@@ -549,13 +549,12 @@ def log_args_and_time_decorator(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         # 获取当前时间
-        now = datetime.now()
 
         # 将当前时间转换为东八区时间
         tz_eastern = pytz.timezone('Asia/Shanghai')
-        time_eastern = tz_eastern.localize(now)
+        time_eastern = datetime.now(tz_eastern) 
 
-        print("{} {} 正在处理 【{}】 发送的消息 【{}】 ................".format(time_eastern, func.__name__, args[0]['senderNick'],
+        print("{} {} 正在处理 【{}】 发送的消息 【{}】 ................".format(time_eastern.strftime('%Y-%m-%d %H:%M:%S'), func.__name__, args[0]['senderNick'],
                                                                    args[0]['text']['content'].strip()[:12]))
         result = func(*args, **kwargs)
         return result
