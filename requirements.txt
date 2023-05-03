@@ -10,7 +10,7 @@ chardet==4.0.0
 charset-normalizer==3.0.1
 click==8.1.3
 cloudscraper==1.2.69
-EdgeGPT==0.1.22.1
+EdgeGPT==0.3.4.2
 Flask==2.2.3
 frozenlist==1.3.3
 googlesearch-python==1.1.0
