@@ -541,7 +541,8 @@ phind = PhindSearch()
 echo = Echo()
 sd = FreeStableDuffision()
 g_search = SearchGoogle()
-bing = Chatbot(cookiePath=cookie_file_path)
+bing = await Chatbot.create(cookie_path=cookie_file_path)
+# bing = Chatbot(cookiePath=cookie_file_path)
 print("#################################### 完成各个机器人初始化 ######################################")
 
 
@@ -552,10 +553,10 @@ def log_args_and_time_decorator(func):
 
         # 将当前时间转换为东八区时间
         tz_eastern = pytz.timezone('Asia/Shanghai')
-        time_eastern = datetime.now(tz_eastern) 
+        time_eastern = datetime.now(tz_eastern)
 
-        print("{} {} 正在处理 【{}】 发送的消息 【{}】 ................".format(time_eastern.strftime('%Y-%m-%d %H:%M:%S'), func.__name__, args[0]['senderNick'],
-                                                                   args[0]['text']['content'].strip()[:12]))
+        print("{} {} 正在处理 【{}】 发送的消息 {} ................".format(time_eastern.strftime('%Y-%m-%d %H:%M:%S'), func.__name__, args[0]['senderNick'],
+                                                                   args[0]['text']['content'].strip()[:100]))
         result = func(*args, **kwargs)
         return result
 
@@ -667,6 +668,10 @@ async def process_bing(req_data):
         print(e)
         result = "😭 答不上来，换个问题或者问问别的机器人吧，群里有个Echo，它一直活着，老铁"
     DingdingUtil.sendMarkdown(senderid, tt, result, webhook_url)
+
+@app.route("/", methods=["GET"])
+def index():
+    return "AAAAAAAAAAAAAAAIIIIIIIIIIIIIII"
 
 
 @app.route("/<robot>", methods=["POST"])
