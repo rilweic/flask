@@ -541,7 +541,7 @@ phind = PhindSearch()
 echo = Echo()
 sd = FreeStableDuffision()
 g_search = SearchGoogle()
-bing = await Chatbot.create(cookie_path=cookie_file_path)
+
 # bing = Chatbot(cookiePath=cookie_file_path)
 print("#################################### 完成各个机器人初始化 ######################################")
 
@@ -657,10 +657,11 @@ async def process_bing(req_data):
 
     tt = """{} 回复：{} """.format('AI', text_info if len(text_info) <= 12 else "{}...".format(text_info[:12]))
     # 设置重置次数
-    global BING_COUNT
-    if BING_COUNT > 10:
-        await bing.reset()
-    BING_COUNT = BING_COUNT + 1
+    # global BING_COUNT
+    # if BING_COUNT > 10:
+    #     await bing.reset()
+    bing = await Chatbot.create(cookie_path=cookie_file_path)
+    # BING_COUNT = BING_COUNT + 1
     resp_dict = await bing.ask(text_info, conversation_style=ConversationStyle.creative)
     try:
         result = MsgWrapper.process_new_bing_response(resp_dict)
